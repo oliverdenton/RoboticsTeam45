@@ -90,8 +90,12 @@ class SearchActionServer(object):
             self.result.closest_object_distance = self.min_distance
             self.result.closest_object_angle = self.object_angle
 
-            self.actionserver.set_succeeded(self.result)
             self.robot_controller.stop()
+            self.robot_controller.set_move_cmd(0.0, 1.5)
+            self.robot_controller.publish()
+            rospy.sleep(0.6)
+            self.robot_controller.stop()
+            self.actionserver.set_succeeded(self.result)
 
 if __name__ == '__main__':
     rospy.init_node("search_action_server")
