@@ -15,6 +15,7 @@ from tb3_odometry import TB3Odometry
 # Import some other useful Python Modules
 from math import sqrt, pow
 import numpy as np
+import time
 
 class SearchActionServer(object):
     feedback = SearchFeedback()
@@ -42,61 +43,65 @@ class SearchActionServer(object):
     def action_server_launcher(self, goal):
         r = rospy.Rate(10)
 
-        success = True
-        if goal.fwd_velocity <= 0 or goal.fwd_velocity > 0.26:
-            print("Invalid velocity.  Select a value between 0 and 0.26 m/s.")
-            success = False
-        if goal.approach_distance <= 0.2:
-            print("Invalid approach distance: I'll crash!")
-            success = False
-        elif goal.approach_distance > 3.5:
-            print("Invalid approach distance: I can't measure that far.")
-            success = False
+        end_time = time.time() + 60 * 1
+        while time.time() < end_time:
 
-        if not success:
-            self.actionserver.set_aborted()
-            return
+            success = True
+            if goal.fwd_velocity <= 0 or goal.fwd_velocity > 0.26:
+                print("Invalid velocity.  Select a value between 0 and 0.26 m/s.")
+                success = False
+            if goal.approach_distance <= 0.2:
+                print("Invalid approach distance: I'll crash!")
+                success = False
+            elif goal.approach_distance > 3.5:
+                print("Invalid approach distance: I can't measure that far.")
+                success = False
 
-        print("Request to move at {:.3f}m/s and stop {:.2f}m infront of any obstacles".format(goal.fwd_velocity, goal.approach_distance))
+            if not success:
+                self.actionserver.set_aborted()
+                return
 
-        # Get the current robot odometry:
-        self.posx0 = self.robot_odom.posx
-        self.posy0 = self.robot_odom.posy
+            print("Request to move at {:.3f}m/s and stop {:.2f}m infront of any obstacles".format(goal.fwd_velocity, goal.approach_distance))
 
-        print("The robot will start to move now...")
-        # set the robot velocity:
-        self.robot_controller.set_move_cmd(goal.fwd_velocity, 0.0)
+            # Get the current robot odometry:
+            self.posx0 = self.robot_odom.posx
+            self.posy0 = self.robot_odom.posy
 
-        while self.min_distance > goal.approach_distance:
-            self.robot_controller.publish()
-            # check if there has been a request to cancel the action mid-way through:
-            if self.actionserver.is_preempt_requested():
-                rospy.loginfo("Cancelling the camera sweep.")
-                self.actionserver.set_preempted()
-                # stop the robot:
+            print("The robot will start to move now...")
+            # set the robot velocity:
+            self.robot_controller.set_move_cmd(goal.fwd_velocity, 0.0)
+
+            while self.min_distance > goal.approach_distance:
+                self.robot_controller.publish()
+                # check if there has been a request to cancel the action mid-way through:
+                if self.actionserver.is_preempt_requested():
+                    rospy.loginfo("Cancelling the camera sweep.")
+                    self.actionserver.set_preempted()
+                    # stop the robot:
+                    self.robot_controller.stop()
+                    success = False
+                    # exit the loop:
+                    break
+
+                self.distance = sqrt(pow(self.posx0 - self.robot_odom.posx, 2) + pow(self.posy0 - self.robot_odom.posy, 2))
+                # populate the feedback message and publish it:
+                self.feedback.current_distance_travelled = self.distance
+                self.actionserver.publish_feedback(self.feedback)
+
+            if success:
+                rospy.loginfo("approach completed sucessfully.")
+                self.result.total_distance_travelled = self.distance
+                self.result.closest_object_distance = self.min_distance
+                self.result.closest_object_angle = self.object_angle
+                self.robot_controller.stop()
+
+                self.robot_controller.set_move_cmd(0.0, 1.5)
+                self.robot_controller.publish()
+                rospy.sleep(0.6)
                 self.robot_controller.stop()
                 success = False
-                # exit the loop:
-                break
 
-            self.distance = sqrt(pow(self.posx0 - self.robot_odom.posx, 2) + pow(self.posy0 - self.robot_odom.posy, 2))
-            # populate the feedback message and publish it:
-            self.feedback.current_distance_travelled = self.distance
-            self.actionserver.publish_feedback(self.feedback)
-
-        if success:
-            rospy.loginfo("approach completed sucessfully.")
-            self.result.total_distance_travelled = self.distance
-            self.result.closest_object_distance = self.min_distance
-            self.result.closest_object_angle = self.object_angle
-            self.robot_controller.stop()
-
-            self.robot_controller.set_move_cmd(0.0, 1.5)
-            self.robot_controller.publish()
-            rospy.sleep(0.6)
-            self.robot_controller.stop()
-
-            self.actionserver.set_succeeded(self.result)
+        self.actionserver.set_succeeded(self.result)
 
 if __name__ == '__main__':
     rospy.init_node("search_action_server")
