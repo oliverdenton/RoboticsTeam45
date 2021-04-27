@@ -95,9 +95,9 @@ class SearchActionServer(object):
                 self.result.closest_object_angle = self.object_angle
                 self.robot_controller.stop()
 
-                self.robot_controller.set_move_cmd(0.0, 1.5)
+                self.robot_controller.set_move_cmd(0.0, 0.65)
                 self.robot_controller.publish()
-                rospy.sleep(0.6)
+                rospy.sleep(0.3)
                 self.robot_controller.stop()
                 success = False
 
