@@ -7,7 +7,6 @@ from com2009_actions.msg import SearchAction, SearchGoal
 
 class action_client(object):
 
-    # Comment
     def feedback_callback(self, feedback_data):
         self.distance = feedback_data.current_distance_travelled
         if self.i < 100:
@@ -53,7 +52,7 @@ class action_client(object):
         self.goal.fwd_velocity = velocity
         self.goal.approach_distance = approach
 
-        # send the goal to the action server:
+        #Send the goal to the action server:
         self.client.send_goal(self.goal, feedback_cb=self.feedback_callback)
 
 
