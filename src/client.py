@@ -21,6 +21,7 @@ class action_client(object):
         self.action_complete = False
         self.distance = 0.0
         self.i = 0
+        self.closest_object_distance = 0
 
         #Initialise the node
         rospy.init_node("search_action_client")
@@ -59,7 +60,7 @@ class action_client(object):
     # Call the Goal
     # Monitor state action with while loop
     def main(self):
-        self.send_goal(velocity = 0.175, approach = 0.5)
+        self.send_goal(velocity = 0.19, approach = 0.5)
         prempt = False
         while self.client.get_state() < 2:
             print("FEEDBACK: Currently travelled {:.3f} m, STATE: Current state code is {}".format(self.distance, self.client.get_state()))

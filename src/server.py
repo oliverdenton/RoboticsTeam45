@@ -32,6 +32,7 @@ class SearchActionServer(object):
         self.robot_controller = MoveTB3()
         self.robot_odom = TB3Odometry()
         self.arc_angles = np.arange(-20, 21)
+        self.min_distance = 0.0
 
     def scan_callback(self, scan_data):
         left_arc = scan_data.ranges[0:21]
@@ -43,7 +44,7 @@ class SearchActionServer(object):
     def action_server_launcher(self, goal):
         r = rospy.Rate(10)
 
-        end_time = time.time() + 60 * 1
+        end_time = time.time() + 90 * 1
         while time.time() < end_time:
 
             success = True
@@ -95,9 +96,9 @@ class SearchActionServer(object):
                 self.result.closest_object_angle = self.object_angle
                 self.robot_controller.stop()
 
-                self.robot_controller.set_move_cmd(0.0, 0.65)
+                self.robot_controller.set_move_cmd(0.0, 0.75)
                 self.robot_controller.publish()
-                rospy.sleep(0.3)
+                rospy.sleep(0.25)
                 self.robot_controller.stop()
                 success = False
 
