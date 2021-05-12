@@ -1,0 +1,10 @@
+
+<!-- <launch>
+<node  name="maze_server" pkg= "team45" type="maze_server.py"  output="screen"></node>
+<node  name="maze_client" pkg="team45"  type="maze_client.py"  output="screen"></node>
+
+</launch> -->
+<launch>
+<node  name="maze_solver" pkg= "team45" type="maze_solver.py"  output="screen"></node>
+
+</launch>
