@@ -11,13 +11,13 @@ class maze_solver(object):
         self.FRONT = 0
         self.LEFT = 0
         self.RIGHT = 0
-        
+
 
         rospy.init_node('maze_navigation')
         self.CMD_PUB = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback)
         self.robot_controller = MoveTB3()
-        
+
 
         self.command = Twist()
         self.command.linear.x = 0.0
@@ -43,7 +43,8 @@ class maze_solver(object):
         self.ctrl_c = True
 
     def main(self):
-        while not self.ctrl_c:
+        end_time = time.time() + 150
+        while time.time() < end_time:
             while(self.near_wall == 0 and not not rospy.is_shutdown()) :
                 print("Moving towards a wall.")
                 if(self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):  # Nothing there, go straight
@@ -51,29 +52,26 @@ class maze_solver(object):
                     self.command.linear.x = 0.20
                 elif(self.RIGHT < self.distance):
                     self.near_wall = 1
-                # else:
-                #     command.angular.z = 0.0 #25
-                #     command.linear.x = 0.0
 
                 self.CMD_PUB.publish(self.command)
 
             else:   # left wall detected
-                if(self.FRONT > self.distance):
+                if(self.FRONT > self.distance * 1.1):
                     if(self.RIGHT < (self.distance * 0.75)):
                         print(
                             "Range: {:.2f}m - Too close. Backing up.".format(self.RIGHT))
                         self.command.angular.z = 0.8 #1.2
-                        self.command.linear.x = 0.22
+                        self.command.linear.x = 0.21
                     elif(self.RIGHT > (self.distance )): #0.75
                         print(
                             "Range: {:.2f}m - Wall-following; turn left.".format(self.RIGHT))
                         self.command.angular.z = -0.8 #0.8
-                        self.command.linear.x = 0.22 #0.22
+                        self.command.linear.x = 0.21 #0.22
                     else:
                         print(
                             "Range: {:.2f}m - Wall-following; turn right.".format(self.RIGHT))
                         self.command.angular.z = 0.6
-                        self.command.linear.x = 0.22
+                        self.command.linear.x = 0.21
 
                 else:  # 5
                     print("Front obstacle detected. Turning away.")
@@ -87,7 +85,9 @@ class maze_solver(object):
                 self.CMD_PUB.publish(self.command)
             # wait for the loop
             self.rate.sleep()
-
+        self.command.angular.z = 0.0
+        self.command.linear.x = 0.0
+        self.CMD_PUB.publish(self.command)
 
 if __name__ == '__main__':
     search_ob = maze_solver()
