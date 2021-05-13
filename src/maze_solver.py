@@ -50,7 +50,7 @@ def main():
             print("Moving towards a wall.")
             if(FRONT > distance and RIGHT > distance and LEFT > distance):  # Nothing there, go straight
                 command.angular.z = 0
-                command.linear.x = 0.26
+                command.linear.x = 0.20
             elif(RIGHT < distance):
                 near_wall = 1
             # else:
@@ -65,17 +65,17 @@ def main():
                     print(
                         "Range: {:.2f}m - Too close. Backing up.".format(RIGHT))
                     command.angular.z = 0.8 #1.2
-                    command.linear.x = 0.26
+                    command.linear.x = 0.22
                 elif(RIGHT > (distance )): #0.75
                     print(
                         "Range: {:.2f}m - Wall-following; turn left.".format(RIGHT))
                     command.angular.z = -0.8 #0.8
-                    command.linear.x = 0.26 #0.22
+                    command.linear.x = 0.22 #0.22
                 else:
                     print(
                         "Range: {:.2f}m - Wall-following; turn right.".format(RIGHT))
                     command.angular.z = 0.6
-                    command.linear.x = 0.26
+                    command.linear.x = 0.22
 
             else:  # 5
                 print("Front obstacle detected. Turning away.")
