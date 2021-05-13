@@ -51,7 +51,7 @@ def main():
             if(FRONT > distance and RIGHT > distance and LEFT > distance):  # Nothing there, go straight
                 command.angular.z = 0
                 command.linear.x = 0.26
-            elif(LEFT < distance):
+            elif(RIGHT < distance):
                 near_wall = 1
             # else:
             #     command.angular.z = 0.0 #25
@@ -61,25 +61,25 @@ def main():
 
         else:   # left wall detected
             if(FRONT > distance):
-                if(LEFT < (distance * 0.75)):
+                if(RIGHT < (distance * 0.75)):
                     print(
-                        "Range: {:.2f}m - Too close. Backing up.".format(LEFT))
-                    command.angular.z = -0.8 #1.2
+                        "Range: {:.2f}m - Too close. Backing up.".format(RIGHT))
+                    command.angular.z = 0.8 #1.2
                     command.linear.x = 0.26
-                elif(LEFT > (distance )): #0.75
+                elif(RIGHT > (distance )): #0.75
                     print(
-                        "Range: {:.2f}m - Wall-following; turn left.".format(LEFT))
-                    command.angular.z = 0.8 #0.8
+                        "Range: {:.2f}m - Wall-following; turn left.".format(RIGHT))
+                    command.angular.z = -0.8 #0.8
                     command.linear.x = 0.26 #0.22
                 else:
                     print(
-                        "Range: {:.2f}m - Wall-following; turn right.".format(LEFT))
-                    command.angular.z = -0.6
+                        "Range: {:.2f}m - Wall-following; turn right.".format(RIGHT))
+                    command.angular.z = 0.6
                     command.linear.x = 0.26
 
             else:  # 5
                 print("Front obstacle detected. Turning away.")
-                command.angular.z = -1.0
+                command.angular.z = 1.0
                 command.linear.x = 0.0
                 CMD_PUB.publish(command)
                 while(FRONT < 0.3 and not rospy.is_shutdown()):
