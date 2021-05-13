@@ -4,92 +4,94 @@ import rospy
 import time
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
+from move_tb3 import MoveTB3
 
-# Closest values in each region
-FRONT = 0
-LEFT = 0
-RIGHT = 0
+class maze_solver(object):
+    def __init__(self):
+        self.FRONT = 0
+        self.LEFT = 0
+        self.RIGHT = 0
+        
 
-# Publisher node
-CMD_PUB = None
+        rospy.init_node('maze_navigation')
+        self.CMD_PUB = rospy.Publisher('cmd_vel', Twist, queue_size=1)
+        self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback)
+        self.robot_controller = MoveTB3()
+        
 
+        self.command = Twist()
+        self.command.linear.x = 0.0
+        self.command.angular.z = 0.0
 
-def scan_callback(msg):
-    global FRONT, LEFT, RIGHT
+        self.rate = rospy.Rate(10)
+        time.sleep(1)  # wait for node to initialize
 
-    FRONT = min(min(msg.ranges[0:5]), min(msg.ranges[354:359]))
-    RIGHT = min(msg.ranges[300:345])
-    LEFT = min(msg.ranges[15:60])
+        self.near_wall = 0  # start with 0, when we get to a wall, change to 1
+        self.distance = 0.4
 
+        self.ctrl_c = False
+        rospy.on_shutdown(self.shutdownhook)
 
-def main():
-    global CMD_PUB, FRONT, LEFT, RIGHT
+    def scan_callback(self,msg):
+        self.FRONT = min(min(msg.ranges[0:5]), min(msg.ranges[354:359]))
+        self.RIGHT = min(msg.ranges[300:345])
+        self.LEFT = min(msg.ranges[15:60])
 
-    CMD_PUB = rospy.Publisher('cmd_vel', Twist, queue_size=1)
-    scan_sub = rospy.Subscriber('scan', LaserScan, scan_callback)
-    rospy.init_node('maze_navigation')
+    def shutdownhook(self):
+        print("Shutting down")
+        self.robot_controller.stop()
+        self.ctrl_c = True
 
-    command = Twist()
-    command.linear.x = 0.0
-    command.angular.z = 0.0
+    def main(self):
+        while not self.ctrl_c:
+            while(self.near_wall == 0 and not not rospy.is_shutdown()) :
+                print("Moving towards a wall.")
+                if(self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):  # Nothing there, go straight
+                    self.command.angular.z = 0
+                    self.command.linear.x = 0.20
+                elif(self.RIGHT < self.distance):
+                    self.near_wall = 1
+                # else:
+                #     command.angular.z = 0.0 #25
+                #     command.linear.x = 0.0
 
-    rate = rospy.Rate(10)
-    time.sleep(1)  # wait for node to initialize
+                self.CMD_PUB.publish(self.command)
 
-    near_wall = 0  # start with 0, when we get to a wall, change to 1
-    distance = 0.4
+            else:   # left wall detected
+                if(self.FRONT > self.distance):
+                    if(self.RIGHT < (self.distance * 0.75)):
+                        print(
+                            "Range: {:.2f}m - Too close. Backing up.".format(self.RIGHT))
+                        self.command.angular.z = 0.8 #1.2
+                        self.command.linear.x = 0.22
+                    elif(self.RIGHT > (self.distance )): #0.75
+                        print(
+                            "Range: {:.2f}m - Wall-following; turn left.".format(self.RIGHT))
+                        self.command.angular.z = -0.8 #0.8
+                        self.command.linear.x = 0.22 #0.22
+                    else:
+                        print(
+                            "Range: {:.2f}m - Wall-following; turn right.".format(self.RIGHT))
+                        self.command.angular.z = 0.6
+                        self.command.linear.x = 0.22
 
-    # print("Turning...")
-    # command.angular.z = 0
-    # command.linear.x = 0
-    # CMD_PUB.publish(command)
-    # time.sleep(2)
+                else:  # 5
+                    print("Front obstacle detected. Turning away.")
+                    self.command.angular.z = 1.0
+                    self.command.linear.x = 0.0
+                    self.CMD_PUB.publish(self.command)
+                    while(self.FRONT < 0.3 and not self.ctrl_c):
+                        self.CMD_PUB.publish(self.command)
 
-    while not rospy.is_shutdown():
-        while(near_wall == 0 and not rospy.is_shutdown()):
-            print("Moving towards a wall.")
-            if(FRONT > distance and RIGHT > distance and LEFT > distance):  # Nothing there, go straight
-                command.angular.z = 0
-                command.linear.x = 0.20
-            elif(RIGHT < distance):
-                near_wall = 1
-            # else:
-            #     command.angular.z = 0.0 #25
-            #     command.linear.x = 0.0
-
-            CMD_PUB.publish(command)
-
-        else:   # left wall detected
-            if(FRONT > distance):
-                if(RIGHT < (distance * 0.75)):
-                    print(
-                        "Range: {:.2f}m - Too close. Backing up.".format(RIGHT))
-                    command.angular.z = 0.8 #1.2
-                    command.linear.x = 0.22
-                elif(RIGHT > (distance )): #0.75
-                    print(
-                        "Range: {:.2f}m - Wall-following; turn left.".format(RIGHT))
-                    command.angular.z = -0.8 #0.8
-                    command.linear.x = 0.22 #0.22
-                else:
-                    print(
-                        "Range: {:.2f}m - Wall-following; turn right.".format(RIGHT))
-                    command.angular.z = 0.6
-                    command.linear.x = 0.22
-
-            else:  # 5
-                print("Front obstacle detected. Turning away.")
-                command.angular.z = 1.0
-                command.linear.x = 0.0
-                CMD_PUB.publish(command)
-                while(FRONT < 0.3 and not rospy.is_shutdown()):
-                    CMD_PUB.publish(command)
-
-            # publish command
-            CMD_PUB.publish(command)
-        # wait for the loop
-        rate.sleep()
+                # publish command
+                self.CMD_PUB.publish(self.command)
+            # wait for the loop
+            self.rate.sleep()
 
 
 if __name__ == '__main__':
-    main()
+    search_ob = maze_solver()
+    try:
+        search_ob.main()
+    except rospy.ROSInterruptException:
+        pass
