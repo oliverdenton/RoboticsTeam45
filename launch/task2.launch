@@ -1,4 +1,3 @@
 <launch>
-   <node pkg="team45" type="object_detection.py" name="server_node"  output="screen"></node>
    <node pkg="team45" type="colour_search.py" name="client_node"  output="screen"></node>
 </launch>
