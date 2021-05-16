@@ -175,9 +175,9 @@ class colour_search(object):
 
                             print("SEARCH COMPLETE: The robot is now facing the target pillar.")
                             self.find_target = True
-                            #self.robot_controller.stop()
-                            #rospy.sleep(2)
-                            #break
+                            self.robot_controller.stop()
+                            rospy.sleep(2)
+                            break
                     else:
                         self.move_rate = 'slow'
                 elif self.find_target == True:
