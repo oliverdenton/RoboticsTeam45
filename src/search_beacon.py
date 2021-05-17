@@ -72,6 +72,18 @@ class colour_search(object):
         self.near_wall = 0  # start with 0, when we get to a wall, change to 1
         self.distance = 0.5
 
+        self.distance1 = 0.7
+        self.color_forwards1 = None
+
+        self.hsv_values = {
+            "Red":    ([0, 185, 100], [10, 255, 255]),
+            "Blue":   ([115, 224, 100],   [130, 255, 255]),
+            "Green":   ([25, 150, 100], [70, 255, 255]),
+            "Turquoise":   ([75, 150, 100], [100, 255, 255]),
+            "Yellow": ([28, 180, 100], [32, 255, 255]),
+            "Purple":   ([145, 100, 100], [150, 255, 255])
+        }
+
 
     def shutdown_ops(self):
         self.robot_controller.stop()
@@ -127,12 +139,9 @@ class colour_search(object):
         self.RIGHT = min(scan_data.ranges[300:345])
         self.LEFT = min(scan_data.ranges[15:60])
 
-        self.front = min(min(scan_data.ranges[0:5]), min(scan_data.ranges[354:359]))
-        self.right = min(scan_data.ranges[260:350])
-        self.left = min(scan_data.ranges[15:65])
 
     def move_around(self):
-        while not (self.m00 > self.m00_min):
+        while not (self.m00 > self.m00_min): 
             while(self.near_wall == 0 and not rospy.is_shutdown()) :
                 print("Moving towards a wall.")
                 if(self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):  # Nothing there, go straight
@@ -178,34 +187,34 @@ class colour_search(object):
         self.CMD_PUB.publish(self.command)
 
     def move_around1(self):
-        while not self.stop_at_target:
+        while not (self.m00 > self.m00_min and self.color_forwards1 == self.start_color and self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance ):
             while(self.near_wall == 0 and not rospy.is_shutdown()) :
                 #print("Moving towards a wall.")
-                if(self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):  # Nothing there, go straight
+                if(self.FRONT > self.distance1 and self.RIGHT > self.distance1 and self.LEFT > self.distance1):  # Nothing there, go straight
                     self.command.angular.z = 0
-                    self.command.linear.x = 0.20
-                elif(self.RIGHT < self.distance):
+                    self.command.linear.x = 0.1
+                elif(self.RIGHT < self.distance1):
                     self.near_wall = 1
 
                 self.CMD_PUB.publish(self.command)
 
             else:   # left wall detected
-                if(self.FRONT > self.distance):
-                    if(self.RIGHT < (self.distance * 0.75)):
+                if(self.FRONT > self.distance1 * 1.1):
+                    if(self.RIGHT < (self.distance1 * 0.75)):
                         #print(
                         #    "Range: {:.2f}m - Too close. Backing up.".format(self.RIGHT))
-                        self.command.angular.z = 0.6 #1.2
-                        self.command.linear.x = 0.19
-                    elif(self.RIGHT > (self.distance )): #0.75
+                        self.command.angular.z = 1.0 #1.2
+                        self.command.linear.x = 0.1
+                    elif(self.RIGHT > (self.distance1 )): #0.75
                         #print(
                         #    "Range: {:.2f}m - Wall-following; turn left.".format(self.RIGHT))
-                        self.command.angular.z = -0.6 #0.8
-                        self.command.linear.x = 0.19 #0.22
+                        self.command.angular.z = -1.0 #0.8
+                        self.command.linear.x = 0.1 #0.22
                     else:
-                        print(
-                            "Range: {:.2f}m - Wall-following; turn right.".format(self.RIGHT))
-                        self.command.angular.z = 0.6
-                        self.command.linear.x = 0.19
+                        #print(
+                        #    "Range: {:.2f}m - Wall-following; turn right.".format(self.RIGHT))
+                        self.command.angular.z = 1.0
+                        self.command.linear.x = 0.1
 
                 else:  # 5
                     #print("Front obstacle detected. Turning away.")
@@ -218,83 +227,52 @@ class colour_search(object):
                 # publish command
                 self.CMD_PUB.publish(self.command)
             # wait for the loop
+            self.color_forwards1 = self.get_color()
             self.rate.sleep()
         self.command.angular.z = 0.0
         self.command.linear.x = 0.0
         self.CMD_PUB.publish(self.command)
 
-
     def get_color(self):
-        color_hsv = {
-            "Red":    ([0, 185, 100], [10, 255, 255]),
-            "Blue":   ([115, 224, 100],   [130, 255, 255]),
-            "Green":   ([25, 150, 100], [70, 255, 255]),
-            "Turquoise":   ([75, 150, 100], [100, 255, 255]),
-            "Yellow": ([28, 180, 100], [32, 255, 255]),
-            "Purple":   ([145, 185, 100], [150, 250, 255])
-        }
-
-        for color_name, (lower, upper) in color_hsv.items():
+        for color_name, (lower, upper) in self.hsv_values.items():
             lower_bound = np.array(lower)
             upper_bound = np.array(upper)
             mask = cv2.inRange(self.hsv_img, lower_bound, upper_bound)
             if mask.any():
                 return color_name
     
-    def beacon(self):
+    def land_beacon(self):
         if self.stop_at_target == False:
-            if self.cy >= 560-100 and self.cy <= 560+100 and self.cz < 350:
+            if self.cy >= 560-100 and self.cy <= 560+100 :
                 color_forwards = self.get_color()
                 self.robot_controller.set_move_cmd(0.1, 0)
                 print("Moving forward")
-                if self.front <= 0.24 or self.right <= 0.24 or self.left <= 0.24:
-                    #self.move_around()
-                    if self.right <= 0.24:
-                        self.robot_controller.set_move_cmd(-0.3, 0.2)
-                        self.robot_controller.publish()
-                        try_left = False
-                        
-                    elif self.left <= 0.24:
-                        self.robot_controller.set_move_cmd(-0.3, -0.2)
-                        self.robot_controller.publish()
-                        try_left = True
-                        
-                    else:
-                        self.robot_controller.set_move_cmd(-0.3, 0)
-                        self.robot_controller.publish()
-                        
-                    #self.move_around()    
-                    self.robot_controller.publish()
-                    print("Too close to wall!!")
-                elif (self.front <= 0.3 or self.right <= 0.3 or self.left <= 0.3) and color_forwards == self.start_color:
-                    #self.robot_controller.stop()
-                    #self.move_rate = "stop"
-                    #self.find_target = True
-
-                    if self.front < 0.6:
+                if self.FRONT < 0.6 and color_forwards == self.start_color:
+                        self.robot_forward(0.1,1.5)
                         print("BEACONING COMPLETE: The robot has now stopped.")
-                        self.robot_controller.stop()
-                        self.stop_at_target = True   
-                    else:
-                        self.move_around1()
+                        self.stop_at_target = True 
+                        self.robot_controller.stop()      
+                else:
+                    self.move_around1()
             elif 0 < self.cy and self.cy <= 560-100 : #and self.front > 0.5 and self.right > 0.5 and self.left > 0.5:
-                self.robot_controller.set_move_cmd(0.1, 0.25)
+                self.robot_controller.set_move_cmd(0.1, 0.1)
                 self.robot_controller.publish()
                 print("Adjust left")
             elif self.cy > 560+100: #and self.front > 0.5 and self.right > 0.5 and self.left > 0.5:
-                self.robot_controller.set_move_cmd(0.1, -0.25)
+                self.robot_controller.set_move_cmd(0.1, -0.1)
                 self.robot_controller.publish()
                 print("Adjust Right")
             else:
                 self.move_around1()
+                #print("Go forward")
+                #self.robot_controller.set_move_cmd(0.1, 0)
         else: 
             self.robot_controller.stop()
 
     def main(self):
         while not self.ctrl_c:
             if self.turn == False:
-                self.robot_rotate(0.9,1.8)
-
+                self.robot_rotate(-0.9,1.8)
 
                 self.lower = np.array([0, 185, 100])
                 self.upper = np.array([10, 255, 255])
@@ -350,15 +328,12 @@ class colour_search(object):
                     self.start_color_upper = self.upper
                     print("SEARCH INITIATED: The target colour is {}".format (self.start_color))
 
-                self.robot_rotate(-0.9,1.85)
+                self.robot_rotate(0.9,1.8)
                 self.robot_controller.stop()
                 self.turn = True  
 
             else:
                 if self.m00 > self.m00_min and self.find_target == False :
-                    # blob detected
-                    #if self.cy >= 560-100 and self.cy <= 560+100:
-                        #if self.move_rate == 'slow':
                     self.move_rate = 'stop'
                     print("BEACON DETECTED: Beaconing initiated.")
                     self.find_target = True
@@ -372,17 +347,14 @@ class colour_search(object):
 
 
                 if self.move_rate == 'fast':
-                    #write code about robot moving around the map
-                    #self.robot_controller.set_move_cmd(0.0, 0.0) # just here to stop terminal from giving an error
                     self.move_around()
                 elif self.move_rate == 'slow':
                     self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
                 elif self.move_rate == 'stop':
                     self.robot_controller.set_move_cmd(0.0, 0.0)
                 elif self.move_rate == 'found_beacon':
-                    #write code about what to do when beacon is found
-                    self.robot_controller.set_move_cmd(0.0, 0.0) # just here to stop terminal from giving an error
-                    #self.beacon()
+                    self.move_around1()
+                    self.land_beacon()
                 else:
                     self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
 
