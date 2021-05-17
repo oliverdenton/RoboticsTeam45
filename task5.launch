@@ -1,0 +1,3 @@
+<launch>
+   <node pkg="team45" type="final.py" name="search_node"  output="screen"></node>
+</launch>
