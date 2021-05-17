@@ -227,26 +227,27 @@ class colour_search(object):
                 # publish command
                 self.CMD_PUB.publish(self.command)
             # wait for the loop
-            self.color_forwards1 = self.get_color()
+            self.color_forwards1 = self.get_beacon_color()
             self.rate.sleep()
         self.command.angular.z = 0.0
         self.command.linear.x = 0.0
         self.CMD_PUB.publish(self.command)
 
-    def get_color(self):
-        for color_name, (lower, upper) in self.hsv_values.items():
-            lower_bound = np.array(lower)
-            upper_bound = np.array(upper)
+    def get_beacon_color(self):
+        for hsv_color, (lower_hsv, upper_hsv) in self.hsv_values.items():
+            lower_bound = np.array(lower_hsv)
+            upper_bound = np.array(upper_hsv)
             mask = cv2.inRange(self.hsv_img, lower_bound, upper_bound)
             if mask.any():
-                return color_name
+                return hsv_color
+               
     
     def land_beacon(self):
         if self.stop_at_target == False:
             if self.cy >= 560-100 and self.cy <= 560+100 :
-                color_forwards = self.get_color()
+                color_forwards = self.get_beacon_color()
                 self.robot_controller.set_move_cmd(0.1, 0)
-                print("Moving forward")
+                print("Moving ahead")
                 if self.FRONT < 0.6 and color_forwards == self.start_color:
                         self.robot_forward(0.1,1.5)
                         print("BEACONING COMPLETE: The robot has now stopped.")
@@ -257,11 +258,11 @@ class colour_search(object):
             elif 0 < self.cy and self.cy <= 560-100 : #and self.front > 0.5 and self.right > 0.5 and self.left > 0.5:
                 self.robot_controller.set_move_cmd(0.1, 0.1)
                 self.robot_controller.publish()
-                print("Adjust left")
+                print("Adjusting left")
             elif self.cy > 560+100: #and self.front > 0.5 and self.right > 0.5 and self.left > 0.5:
                 self.robot_controller.set_move_cmd(0.1, -0.1)
                 self.robot_controller.publish()
-                print("Adjust Right")
+                print("Adjusting Right")
             else:
                 self.move_around1()
                 #print("Go forward")
