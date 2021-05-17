@@ -124,7 +124,7 @@ class colour_search(object):
                     self.start_color_upper = self.upper
                     print("SEARCH INITIATED: The target colour is {}".format (self.start_color))
 
-                self.lower = np.array([25, 150, 100])
+                self.lower = np.array([35, 80, 100])
                 self.upper = np.array([70, 255, 255])
                 self.mask1 = cv2.inRange(self.hsv_img, self.lower, self.upper)
                 if self.mask1.any():
