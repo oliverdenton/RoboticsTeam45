@@ -10,6 +10,7 @@ from cv_bridge import CvBridge
 # Import all the necessary ROS message types:
 from sensor_msgs.msg import Image, LaserScan
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
 
 # Import some other modules from within this package
 from move_tb3 import MoveTB3
@@ -64,16 +65,21 @@ class colour_search(object):
 
         self.CMD_PUB = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback)
+        self.odom_sub = rospy.Subscriber("odom", Odometry, self.odom_callback)
 
         self.command = Twist()
         self.command.linear.x = 0.0
         self.command.angular.z = 0.0
 
         self.near_wall = 0  # start with 0, when we get to a wall, change to 1
-        self.distance = 0.5
+        self.distance = 0.4
 
         self.distance1 = 0.7
         self.color_forwards1 = None
+
+        self.start_x = 0
+        self.start_y = 0
+        self.dist = 0
 
         self.hsv_values = {
             "Red":    ([0, 185, 100], [10, 255, 255]),
@@ -82,7 +88,32 @@ class colour_search(object):
             "Turquoise":   ([75, 150, 100], [100, 255, 255]),
             "Yellow": ([28, 180, 100], [32, 255, 255]),
             "Purple":   ([145, 100, 100], [150, 255, 255])
+
         }
+
+    def odom_callback(self, odom_data):
+        # in order to get theta_z (yaw), we need to convert the 4 orientation
+        # values (x, y, z, w) as provided in the odometry message.  These are in
+        # quaternions, so we use the euler_from_quaternion function to convert to
+        # roll, pitch and yaw.
+        or_x = odom_data.pose.pose.orientation.x
+        or_y = odom_data.pose.pose.orientation.y
+        or_z = odom_data.pose.pose.orientation.z
+        or_w = odom_data.pose.pose.orientation.w
+
+        # x and y don't need to be converted, so we just obtain those directly from
+        # the odometry message as follows:
+        self.pos_x = odom_data.pose.pose.position.x
+        self.pos_y = odom_data.pose.pose.position.y
+
+        # Then, print out the values that we are interested in:
+        # print("x = {:.3f}, y = {:.3f}, theta_z = {:.3f}".format(pos_x, pos_y, yaw))
+        # Get the current robot odometry:
+        # self.posx = self.robot_odom.posx
+        # self.posy = self.robot_odom.posy
+        self.dist = np.linalg.norm((self.pos_x-self.start_x) - (self.pos_y-self.start_y))
+        print(self.dist)
+
 
 
     def shutdown_ops(self):
@@ -271,6 +302,10 @@ class colour_search(object):
             self.robot_controller.stop()
 
     def main(self):
+        # Get the current robot odometry:
+        self.start_x = self.robot_odom.posx
+        self.start_y = self.robot_odom.posy
+
         while not self.ctrl_c:
             if self.turn == False:
                 self.robot_rotate(-0.9,1.8)
@@ -334,8 +369,8 @@ class colour_search(object):
                 self.turn = True
 
             else:
-                if self.m00 > self.m00_min and self.find_target == False :
-                    self.move_rate = 'stop'
+                if self.m00 > self.m00_min and self.find_target == False and self.dist > 1.5:
+                    # self.move_rate = 'stop'
                     print("BEACON DETECTED: Beaconing initiated.")
                     self.find_target = True
 
