@@ -134,7 +134,7 @@ class colour_search(object):
         crop_x = int((width/2) - (crop_width/2))
         crop_y = int((height/2) - (crop_height/2))
 
-        crop_img = cv_img[500:1080, :1920 ] #crop_x:crop_x+crop_width
+        crop_img = cv_img[500:1080, crop_x:crop_x+crop_width] #crop_x:crop_x+crop_width
         hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
         self.hsv_img = hsv_img
 
@@ -159,7 +159,7 @@ class colour_search(object):
         self.LEFT = min(scan_data.ranges[15:60])
 
     def move_around(self):
-        while not (self.m00 > self.m00_min and self.distance_calc() == False): 
+        while not (self.m00 > self.m00_min and self.distance_calc() == False):
             while(self.near_wall == 0 and not rospy.is_shutdown()) :
                 print("Moving towards a wall.")
                 if(self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):  # Nothing there, go straight
@@ -219,7 +219,7 @@ class colour_search(object):
 
             else:   # left wall detected
                 if(self.FRONT > self.distance1 * 1.1):
-                    if(self.RIGHT < (self.distance1 * 0.75)):
+                    if(self.RIGHT < (self.distance1 * 0.5)):
                         #print(
                         #    "Range: {:.2f}m - Too close. Backing up.".format(self.RIGHT))
                         self.command.angular.z = 0.75 #1.2
