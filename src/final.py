@@ -38,7 +38,7 @@ class colour_search(object):
 
         self.move_rate = '' # fast, slow or stop
         self.stop_counter = 0
-        self.sub_subscriber = rospy.Subscriber('/scan', LaserScan, self.scan_callback)
+        #self.sub_subscriber = rospy.Subscriber('/scan', LaserScan, self.scan_callback)
         self.ctrl_c = False
         rospy.on_shutdown(self.shutdown_ops)
 
@@ -65,7 +65,7 @@ class colour_search(object):
 
         self.CMD_PUB = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback)
-        self.odom_sub = rospy.Subscriber("odom", Odometry, self.odom_callback)
+        #self.odom_sub = rospy.Subscriber("odom", Odometry, self.odom_callback)
 
         self.command = Twist()
         self.command.linear.x = 0.0
@@ -77,12 +77,12 @@ class colour_search(object):
         self.distance1 = 0.7
         self.color_forwards1 = None
 
-        self.start_x = 0
-        self.start_y = 0
-        self.dist = 0
+        self.start_x = None
+        self.start_y = None
+        self.dist = None
 
         self.hsv_values = {
-            "Red":    ([0, 185, 100], [10, 255, 255]),
+            "Red":    ([-2, 240, 100], [5, 255, 255]),
             "Blue":   ([115, 224, 100],   [130, 255, 255]),
             "Green":   ([35, 80, 100], [70, 255, 255]),
             "Turquoise":   ([75, 150, 100], [100, 255, 255]),
@@ -91,30 +91,18 @@ class colour_search(object):
 
         }
 
-    def odom_callback(self, odom_data):
-        # in order to get theta_z (yaw), we need to convert the 4 orientation
-        # values (x, y, z, w) as provided in the odometry message.  These are in
-        # quaternions, so we use the euler_from_quaternion function to convert to
-        # roll, pitch and yaw.
-        or_x = odom_data.pose.pose.orientation.x
-        or_y = odom_data.pose.pose.orientation.y
-        or_z = odom_data.pose.pose.orientation.z
-        or_w = odom_data.pose.pose.orientation.w
 
-        # x and y don't need to be converted, so we just obtain those directly from
-        # the odometry message as follows:
-        self.pos_x = odom_data.pose.pose.position.x
-        self.pos_y = odom_data.pose.pose.position.y
-
-        # Then, print out the values that we are interested in:
-        # print("x = {:.3f}, y = {:.3f}, theta_z = {:.3f}".format(pos_x, pos_y, yaw))
-        # Get the current robot odometry:
-        # self.posx = self.robot_odom.posx
-        # self.posy = self.robot_odom.posy
-        self.dist = np.linalg.norm((self.pos_x-self.start_x) - (self.pos_y-self.start_y))
+    def distance_calc(self):
+        #self.dist = math.sqrt(self.robot_odom.posx - self.start_x)**2 + (self.robot_odom.posy- self.start_y)**2)
+        self.dist = np.linalg.norm((self.robot_odom.posx-self.start_x) - (self.robot_odom.posy-self.start_y))
         print(self.dist)
+        st_bec = True
+        if self.dist > 1.7:
+            st_bec = False
+        else:
+            st_bec = True
 
-
+        return st_bec
 
     def shutdown_ops(self):
         self.robot_controller.stop()
@@ -146,7 +134,7 @@ class colour_search(object):
         crop_x = int((width/2) - (crop_width/2))
         crop_y = int((height/2) - (crop_height/2))
 
-        crop_img = cv_img[500:1080, crop_x:crop_x+crop_width]
+        crop_img = cv_img[500:1080, :1920 ] #crop_x:crop_x+crop_width
         hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
         self.hsv_img = hsv_img
 
@@ -170,9 +158,8 @@ class colour_search(object):
         self.RIGHT = min(scan_data.ranges[300:345])
         self.LEFT = min(scan_data.ranges[15:60])
 
-
     def move_around(self):
-        while not (self.m00 > self.m00_min):
+        while not (self.m00 > self.m00_min and self.distance_calc() == False): 
             while(self.near_wall == 0 and not rospy.is_shutdown()) :
                 print("Moving towards a wall.")
                 if(self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):  # Nothing there, go straight
@@ -184,22 +171,22 @@ class colour_search(object):
                 self.CMD_PUB.publish(self.command)
 
             else:   # left wall detected
-                if(self.FRONT > self.distance):
+                if(self.FRONT > self.distance *1.1):
                     if(self.RIGHT < (self.distance * 0.75)):
                         print(
                             "Range: {:.2f}m - Too close. Backing up.".format(self.RIGHT))
-                        self.command.angular.z = 0.6 #1.2
-                        self.command.linear.x = 0.19
+                        self.command.angular.z = 0.75 #1.2
+                        self.command.linear.x = 0.17
                     elif(self.RIGHT > (self.distance )): #0.75
                         print(
                             "Range: {:.2f}m - Wall-following; turn left.".format(self.RIGHT))
-                        self.command.angular.z = -0.6 #0.8
-                        self.command.linear.x = 0.19 #0.22
+                        self.command.angular.z = -0.75 #0.8
+                        self.command.linear.x = 0.17 #0.22
                     else:
                         print(
                             "Range: {:.2f}m - Wall-following; turn right.".format(self.RIGHT))
                         self.command.angular.z = 0.6
-                        self.command.linear.x = 0.19
+                        self.command.linear.x = 0.17
 
                 else:  # 5
                     print("Front obstacle detected. Turning away.")
@@ -216,6 +203,7 @@ class colour_search(object):
         self.command.angular.z = 0.0
         self.command.linear.x = 0.0
         self.CMD_PUB.publish(self.command)
+        print("Move around end")
 
     def move_around1(self):
         while not (self.m00 > self.m00_min and self.color_forwards1 == self.start_color and self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance ):
@@ -234,18 +222,18 @@ class colour_search(object):
                     if(self.RIGHT < (self.distance1 * 0.75)):
                         #print(
                         #    "Range: {:.2f}m - Too close. Backing up.".format(self.RIGHT))
-                        self.command.angular.z = 1.0 #1.2
-                        self.command.linear.x = 0.1
+                        self.command.angular.z = 0.75 #1.2
+                        self.command.linear.x = 0.15
                     elif(self.RIGHT > (self.distance1 )): #0.75
                         #print(
                         #    "Range: {:.2f}m - Wall-following; turn left.".format(self.RIGHT))
-                        self.command.angular.z = -1.0 #0.8
-                        self.command.linear.x = 0.1 #0.22
+                        self.command.angular.z = -0.75 #0.8
+                        self.command.linear.x = 0.15 #0.22
                     else:
                         #print(
                         #    "Range: {:.2f}m - Wall-following; turn right.".format(self.RIGHT))
-                        self.command.angular.z = 1.0
-                        self.command.linear.x = 0.1
+                        self.command.angular.z = 0.6
+                        self.command.linear.x = 0.15
 
                 else:  # 5
                     #print("Front obstacle detected. Turning away.")
@@ -302,12 +290,13 @@ class colour_search(object):
             self.robot_controller.stop()
 
     def main(self):
-        # Get the current robot odometry:
-        self.start_x = self.robot_odom.posx
-        self.start_y = self.robot_odom.posy
-
         while not self.ctrl_c:
             if self.turn == False:
+                # Get the current robot odometry:
+                self.start_x = self.robot_odom.posx
+                self.start_y = self.robot_odom.posy
+                #print(self.start_x , self.start_y)
+
                 self.robot_rotate(-0.9,1.8)
 
                 self.lower = np.array([0, 185, 100])
@@ -369,8 +358,9 @@ class colour_search(object):
                 self.turn = True
 
             else:
-                if self.m00 > self.m00_min and self.find_target == False and self.dist > 1.5:
-                    # self.move_rate = 'stop'
+                self.distance_calc()
+                if self.m00 > self.m00_min and self.find_target == False and self.distance_calc() == False:
+                    self.move_rate = 'stop'
                     print("BEACON DETECTED: Beaconing initiated.")
                     self.find_target = True
 
@@ -384,8 +374,8 @@ class colour_search(object):
 
                 if self.move_rate == 'fast':
                     self.move_around()
-                elif self.move_rate == 'slow':
-                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+                #elif self.move_rate == 'slow':
+                #    self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
                 elif self.move_rate == 'stop':
                     self.robot_controller.set_move_cmd(0.0, 0.0)
                 elif self.move_rate == 'found_beacon':
