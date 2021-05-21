@@ -95,7 +95,7 @@ class colour_search(object):
     def distance_calc(self):
         #self.dist = math.sqrt(self.robot_odom.posx - self.start_x)**2 + (self.robot_odom.posy- self.start_y)**2)
         self.dist = np.linalg.norm((self.robot_odom.posx-self.start_x) - (self.robot_odom.posy-self.start_y))
-        print(self.dist)
+        #print(self.dist)
         st_bec = True
         if self.dist > 1.7:
             st_bec = False
@@ -379,7 +379,8 @@ class colour_search(object):
                 elif self.move_rate == 'stop':
                     self.robot_controller.set_move_cmd(0.0, 0.0)
                 elif self.move_rate == 'found_beacon':
-                    self.move_around1()
+                    if self.stop_at_target == False :
+                        self.move_around1()
                     self.land_beacon()
                 else:
                     self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
