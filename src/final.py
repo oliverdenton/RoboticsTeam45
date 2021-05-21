@@ -81,7 +81,7 @@ class colour_search(object):
         self.dist = None
 
         self.hsv_values = {
-            "Red":    ([0, 185, 125], [10, 255, 255]),
+            "Red":    ([0, 185, 110], [10, 255, 255]),
             "Blue":   ([115, 224, 100],   [130, 255, 255]),
             "Green":   ([35, 80, 100], [70, 255, 255]),
             "Turquoise":   ([75, 150, 100], [100, 255, 255]),
@@ -157,7 +157,7 @@ class colour_search(object):
         self.LEFT = min(scan_data.ranges[15:60])
 
     def move_around(self):
-        while not (self.m00 > self.m00_min and self.distance_calc() == False): 
+        while not (self.m00 > self.m00_min and self.distance_calc() == False):
             while(self.near_wall == 0 and not rospy.is_shutdown()) :
                 print("Moving towards a wall.")
                 if(self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):  # Nothing there, go straight
@@ -266,12 +266,14 @@ class colour_search(object):
                 self.robot_controller.set_move_cmd(0.1, 0)
                 print("Moving ahead")
                 if self.FRONT < 0.6 and color_forwards == self.start_color:
-                        self.robot_forward(0.1,1.5)
-                        print("BEACONING COMPLETE: The robot has now stopped.")
-                        self.robot_forward(0.1,1.2)
-                        self.robot_rotate(0.2,3)
-                        self.stop_at_target = True
+                        self.robot_forward(0.1,2.5)
+                        self.robot_rotate(0.2,2)
                         self.robot_controller.stop()
+                        print("BEACONING COMPLETE: The robot has now stopped.")
+                        #self.robot_forward(0.1,1.2)
+                        
+                        self.stop_at_target = True
+                        
                 else:
                     self.move_around1()
             elif 0 < self.cy and self.cy <= 560-100 : #and self.front > 0.5 and self.right > 0.5 and self.left > 0.5:
@@ -299,7 +301,7 @@ class colour_search(object):
 
                 self.robot_rotate(-0.9,1.8)
 
-                self.lower = np.array([0, 185, 125])
+                self.lower = np.array([0, 185, 110])
                 self.upper = np.array([10, 255, 255])
                 self.mask1 = cv2.inRange(self.hsv_img, self.lower, self.upper)
                 if self.mask1.any():
