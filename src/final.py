@@ -65,7 +65,6 @@ class colour_search(object):
 
         self.CMD_PUB = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback)
-        #self.odom_sub = rospy.Subscriber("odom", Odometry, self.odom_callback)
 
         self.command = Twist()
         self.command.linear.x = 0.0
@@ -82,7 +81,7 @@ class colour_search(object):
         self.dist = None
 
         self.hsv_values = {
-            "Red":    ([-2, 240, 100], [5, 255, 255]),
+            "Red":    ([0, 185, 125], [10, 255, 255]),
             "Blue":   ([115, 224, 100],   [130, 255, 255]),
             "Green":   ([35, 80, 100], [70, 255, 255]),
             "Turquoise":   ([75, 150, 100], [100, 255, 255]),
@@ -93,11 +92,10 @@ class colour_search(object):
 
 
     def distance_calc(self):
-        #self.dist = math.sqrt(self.robot_odom.posx - self.start_x)**2 + (self.robot_odom.posy- self.start_y)**2)
-        self.dist = np.linalg.norm((self.robot_odom.posx-self.start_x) - (self.robot_odom.posy-self.start_y))
-        print(self.dist)
         st_bec = True
-        if self.dist > 1.7:
+        self.dist = np.linalg.norm((self.robot_odom.posx-self.start_x) - (self.robot_odom.posy-self.start_y))
+        #print(self.dist)
+        if self.dist > 1.6:
             st_bec = False
         else:
             st_bec = True
@@ -134,7 +132,7 @@ class colour_search(object):
         crop_x = int((width/2) - (crop_width/2))
         crop_y = int((height/2) - (crop_height/2))
 
-        crop_img = cv_img[500:1080, :1920 ] #crop_x:crop_x+crop_width
+        crop_img = cv_img[500:1080, crop_x:crop_x+crop_width ] #crop_x:crop_x+crop_width
         hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
         self.hsv_img = hsv_img
 
@@ -206,34 +204,34 @@ class colour_search(object):
         print("Move around end")
 
     def move_around1(self):
-        while not (self.m00 > self.m00_min and self.color_forwards1 == self.start_color and self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance ):
+        while not (self.m00 > self.m00_min and self.color_forwards1 == self.start_color and self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):
             while(self.near_wall == 0 and not rospy.is_shutdown()) :
                 #print("Moving towards a wall.")
-                if(self.FRONT > self.distance1 and self.RIGHT > self.distance1 and self.LEFT > self.distance1):  # Nothing there, go straight
+                if(self.FRONT > self.distance and self.RIGHT > self.distance and self.LEFT > self.distance):  # Nothing there, go straight
                     self.command.angular.z = 0
                     self.command.linear.x = 0.1
-                elif(self.RIGHT < self.distance1):
+                elif(self.RIGHT < self.distance):
                     self.near_wall = 1
 
                 self.CMD_PUB.publish(self.command)
 
             else:   # left wall detected
-                if(self.FRONT > self.distance1 * 1.1):
-                    if(self.RIGHT < (self.distance1 * 0.75)):
+                if(self.FRONT > self.distance * 1.1):
+                    if(self.RIGHT < (self.distance * 0.75)):
                         #print(
                         #    "Range: {:.2f}m - Too close. Backing up.".format(self.RIGHT))
-                        self.command.angular.z = 0.75 #1.2
-                        self.command.linear.x = 0.15
-                    elif(self.RIGHT > (self.distance1 )): #0.75
+                        self.command.angular.z = 0.7 #1.2
+                        self.command.linear.x = 0.17
+                    elif(self.RIGHT > (self.distance )): #0.75
                         #print(
                         #    "Range: {:.2f}m - Wall-following; turn left.".format(self.RIGHT))
-                        self.command.angular.z = -0.75 #0.8
-                        self.command.linear.x = 0.15 #0.22
+                        self.command.angular.z = -0.7 #0.8
+                        self.command.linear.x = 0.17 #0.22
                     else:
                         #print(
                         #    "Range: {:.2f}m - Wall-following; turn right.".format(self.RIGHT))
                         self.command.angular.z = 0.6
-                        self.command.linear.x = 0.15
+                        self.command.linear.x = 0.17
 
                 else:  # 5
                     #print("Front obstacle detected. Turning away.")
@@ -270,6 +268,8 @@ class colour_search(object):
                 if self.FRONT < 0.6 and color_forwards == self.start_color:
                         self.robot_forward(0.1,1.5)
                         print("BEACONING COMPLETE: The robot has now stopped.")
+                        self.robot_forward(0.1,1.2)
+                        self.robot_rotate(0.2,3)
                         self.stop_at_target = True
                         self.robot_controller.stop()
                 else:
@@ -299,7 +299,7 @@ class colour_search(object):
 
                 self.robot_rotate(-0.9,1.8)
 
-                self.lower = np.array([0, 185, 100])
+                self.lower = np.array([0, 185, 125])
                 self.upper = np.array([10, 255, 255])
                 self.mask1 = cv2.inRange(self.hsv_img, self.lower, self.upper)
                 if self.mask1.any():
@@ -379,7 +379,8 @@ class colour_search(object):
                 elif self.move_rate == 'stop':
                     self.robot_controller.set_move_cmd(0.0, 0.0)
                 elif self.move_rate == 'found_beacon':
-                    self.move_around1()
+                    if self.stop_at_target == False :
+                        self.move_around1()
                     self.land_beacon()
                 else:
                     self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
